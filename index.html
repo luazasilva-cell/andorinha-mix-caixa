@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Andorinha Mix — Caixa</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f5f7;color:#17202a}
+header{background:#111827;color:#fff;padding:16px 22px;display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:21px;margin:0}header small{opacity:.75}
+main{max-width:1100px;margin:20px auto;padding:0 15px}.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
+.card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 10px #0000000d}
+h2{margin:0 0 15px;font-size:18px}.row{display:flex;gap:10px;flex-wrap:wrap}
+input,select,button{font:inherit;border-radius:9px;border:1px solid #d5d9df;padding:12px}
+input{width:100%}.grow{flex:1;min-width:180px}button{cursor:pointer;background:#111827;color:#fff;border:0;font-weight:bold}
+button.secondary{background:#e9edf2;color:#17202a}.pay button{flex:1}.pay{display:flex;gap:8px;margin-top:12px}
+.total{font-size:35px;font-weight:800;margin:10px 0}.troco{font-size:20px;font-weight:bold;margin-top:10px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 6px;border-bottom:1px solid #eee}td:last-child,th:last-child{text-align:right}
+.actions{display:flex;gap:8px}.actions button{padding:7px 10px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}.kpi{background:#fff;padding:15px;border-radius:12px}.kpi b{font-size:22px;display:block;margin-top:5px}
+.empty{text-align:center;color:#7b8490;padding:25px}.hidden{display:none}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}.total{font-size:30px}}
+</style>
+</head>
+<body>
+<header><div><h1>🛒 Andorinha Mix</h1><small>Caixa — 1 terminal</small></div><div id="status">Caixa fechado</div></header>
+<main>
+<div class="kpis">
+ <div class="kpi">Vendas hoje<b id="vendas">R$ 0,00</b></div>
+ <div class="kpi">Nº de vendas<b id="qtdVendas">0</b></div>
+ <div class="kpi">Caixa<b id="saldo">R$ 0,00</b></div>
+</div>
+<div class="grid">
+<section class="card">
+<h2>💰 Nova venda</h2>
+<div class="row">
+<input id="valor" class="grow" type="number" min="0" step="0.01" placeholder="Digite o valor da compra">
+<button onclick="adicionar()">Adicionar</button>
+</div>
+<div class="total" id="total">R$ 0,00</div>
+<div id="itens"></div>
+<h2 style="margin-top:18px">Pagamento</h2>
+<div class="pay">
+<button onclick="pagamento('Dinheiro')">💵 Dinheiro</button>
+<button onclick="pagamento('Pix')">📱 Pix</button>
+<button onclick="pagamento('Cartão')">💳 Cartão</button>
+</div>
+<div id="dinheiroBox" class="hidden" style="margin-top:12px">
+<input id="recebido" type="number" min="0" step="0.01" placeholder="Valor recebido">
+<div class="troco" id="troco">Troco: R$ 0,00</div>
+</div>
+<button style="width:100%;margin-top:14px;background:#15803d" onclick="finalizar()">✅ Finalizar venda</button>
+</section>
+
+<section class="card">
+<h2>📊 Vendas do dia</h2>
+<div id="lista"></div>
+<button class="secondary" style="margin-top:15px;width:100%" onclick="limpar()">Limpar vendas do dia</button>
+</section>
+</div>
+</main>
+<script>
+const key='andorinha_mix_v1';
+let dados=JSON.parse(localStorage.getItem(key)||'{"aberto":false,"saldoInicial":0,"vendas":[]}');
+let carrinho=[], forma='';
+const br=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+function salvar(){localStorage.setItem(key,JSON.stringify(dados))}
+function atualizar(){
+ document.getElementById('status').textContent=dados.aberto?'Caixa aberto':'Caixa fechado';
+ let total=dados.vendas.reduce((s,v)=>s+v.valor,0);
+ document.getElementById('vendas').textContent=br(total);
+ document.getElementById('qtdVendas').textContent=dados.vendas.length;
+ document.getElementById('saldo').textContent=br(dados.saldoInicial+dados.vendas.filter(v=>v.forma==='Dinheiro').reduce((s,v)=>s+v.valor,0));
+ document.getElementById('total').textContent=br(carrinho.reduce((s,v)=>s+v,0));
+ document.getElementById('itens').innerHTML=carrinho.length?carrinho.map((v,i)=>`<div class="row" style="justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee"><span>Compra ${i+1}</span><b>${br(v)}</b><button class="secondary actions" onclick="remover(${i})">X</button></div>`).join(''):'<div class="empty">Digite o valor e adicione à venda.</div>';
+ document.getElementById('lista').innerHTML=dados.vendas.length?[...dados.vendas].reverse().map((v,i)=>`<div style="padding:10px 0;border-bottom:1px solid #eee"><b>${br(v.valor)}</b> — ${v.forma}<br><small>${v.hora}</small></div>`).join(''):'<div class="empty">Nenhuma venda hoje.</div>';
+}
+function adicionar(){let n=parseFloat(document.getElementById('valor').value);if(!n||n<=0)return; carrinho.push(n);document.getElementById('valor').value='';atualizar()}
+function remover(i){carrinho.splice(i,1);atualizar()}
+function pagamento(f){forma=f;document.getElementById('dinheiroBox').classList.toggle('hidden',f!=='Dinheiro');if(f!=='Dinheiro')document.getElementById('troco').textContent='Troco: R$ 0,00'}
+document.getElementById('recebido').addEventListener('input',()=>{let t=carrinho.reduce((s,v)=>s+v,0),r=parseFloat(document.getElementById('recebido').value)||0;document.getElementById('troco').textContent=r>=t?'Troco: '+br(r-t):'Falta: '+br(t-r)})
+function finalizar(){
+ let t=carrinho.reduce((s,v)=>s+v,0);if(!t)return alert('Adicione um valor à venda.');if(!forma)return alert('Escolha a forma de pagamento.');
+ if(forma==='Dinheiro'){let r=parseFloat(document.getElementById('recebido').value)||0;if(r<t)return alert('Valor recebido é menor que a compra.')}
+ dados.vendas.push({valor:t,forma,hora:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})});salvar();
+ carrinho=[];forma='';document.getElementById('recebido').value='';document.getElementById('dinheiroBox').classList.add('hidden');atualizar();alert('Venda finalizada!')}
+function limpar(){if(confirm('Apagar as vendas registradas neste navegador?')){dados.vendas=[];salvar();atualizar()}}
+if(!dados.aberto){let x=prompt('Valor inicial do caixa (ex.: 100):','0');dados.saldoInicial=parseFloat(x)||0;dados.aberto=true;salvar()}
+atualizar();
+</script>
+</body></html>
